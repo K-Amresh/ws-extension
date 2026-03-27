@@ -150,9 +150,7 @@
         stack: stack,
         timestamp: Date.now(),
       });
-      var ret = originalSend(msg);
 
-      /* Mocks for this connection apply to every outgoing frame (app code or devtools trigger). */
       var mocks = mockConfigs[connectionId] || [];
       var reqAction =
         result.action != null ? normalizeMockKey(result.action) : "";
@@ -163,7 +161,21 @@
         var key = normalizeMockKey(m.match || m.action);
         return key && (key === reqAction || key === reqMethod);
       });
+      // Green (sendToServer true): mock only — no real send. Red: real send only — no mock.
+      var shouldSendOriginal = true;
+      var shouldApplyMock = false;
       if (mock && matchKey) {
+        if (mock.sendToServer === true) {
+          shouldSendOriginal = false;
+          shouldApplyMock = true;
+        } else {
+          shouldSendOriginal = true;
+          shouldApplyMock = false;
+        }
+      }
+      var ret = shouldSendOriginal ? originalSend(msg) : undefined;
+
+      if (shouldApplyMock) {
         setTimeout(function () {
           try {
             var responseObj = parseJsonLike(mock.response);
